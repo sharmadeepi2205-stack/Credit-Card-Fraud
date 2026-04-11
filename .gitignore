@@ -1,0 +1,43 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+.eggs/
+venv/
+.venv/
+env/
+*/venv/
+*/node_modules/
+*.db
+*.sqlite3
+
+# Node
+node_modules/
+dist/
+.npm/
+
+# Env files
+.env
+*.env.local
+
+# IDE
+.vscode/settings.json
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/*.json
+logs/*.csv
+
+# Other projects in workspace (not part of this repo)
+ai-simulation-platform/
+
+# Claude internal
+.claude/
