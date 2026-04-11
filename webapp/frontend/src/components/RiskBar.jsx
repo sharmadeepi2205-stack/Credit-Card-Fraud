@@ -1,27 +1,16 @@
-/**
- * RiskBar — color progress bar for fraud_score 0-100.
- * Usage: <RiskBar score={72} riskLevel="HIGH" />
- */
 export default function RiskBar({ score, riskLevel, showLabel = true }) {
   const pct = Math.min(Math.max(Number(score) || 0, 0), 100)
-  const color = riskLevel === 'HIGH' ? 'bg-red-500'
-    : riskLevel === 'MEDIUM' ? 'bg-orange-400'
-    : 'bg-green-500'
-  const label = riskLevel === 'HIGH' ? 'High risk'
-    : riskLevel === 'MEDIUM' ? 'Medium risk'
-    : 'Low risk'
+  const color = riskLevel === 'HIGH' ? 'bg-risk-high' : riskLevel === 'MEDIUM' ? 'bg-risk-medium' : 'bg-risk-low'
+  const label = riskLevel === 'HIGH' ? 'High' : riskLevel === 'MEDIUM' ? 'Medium' : 'Low'
 
   return (
-    <div className="w-full space-y-1">
-      {showLabel && (
-        <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400">
-          <span>{label}</span>
-          <span>{pct.toFixed(0)}/100</span>
-        </div>
-      )}
-      <div className="w-full bg-gray-100 dark:bg-gray-700 rounded-full h-1.5 overflow-hidden">
-        <div className={`h-1.5 rounded-full transition-all duration-500 ${color}`}
-          style={{ width: `${pct}%` }} />
+    <div className="w-full">
+      <div className="flex items-center justify-between mb-1">
+        {showLabel && <span className="text-xs text-slate-500 dark:text-slate-400">{label} risk</span>}
+        <span className="text-xs font-mono text-slate-600 dark:text-slate-300 ml-auto">{pct.toFixed(0)}/100</span>
+      </div>
+      <div className="h-1.5 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
+        <div className={`h-full rounded-full transition-all duration-500 ${color}`} style={{ width: `${pct}%` }} />
       </div>
     </div>
   )

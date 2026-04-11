@@ -1,19 +1,169 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-body {
-  @apply bg-gray-50 text-gray-900;
+@layer base {
+  *, *::before, *::after { box-sizing: border-box; }
+
+  html { -webkit-text-size-adjust: 100%; }
+
+  body {
+    @apply bg-surface-secondary text-slate-700 font-sans antialiased overflow-x-hidden;
+    font-size: 14px;
+    line-height: 20px;
+  }
+
+  /* Dark mode body */
+  .dark body,
+  .dark {
+    @apply bg-slate-950 text-slate-300;
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { @apply bg-transparent; }
+  ::-webkit-scrollbar-thumb { @apply bg-slate-300 rounded-full; }
+  ::-webkit-scrollbar-thumb:hover { @apply bg-slate-400; }
+  .dark ::-webkit-scrollbar-thumb { @apply bg-slate-600; }
 }
 
-.dark body {
-  @apply bg-gray-900 text-gray-100;
+@layer components {
+  /* ── Buttons ─────────────────────────────────────────────────── */
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-md text-sm font-medium
+           transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2
+           focus-visible:ring-brand-600 focus-visible:ring-offset-2
+           disabled:pointer-events-none disabled:opacity-50
+           h-9 px-4;
+  }
+  .btn-primary {
+    @apply btn bg-brand-600 text-white hover:bg-brand-700 active:bg-brand-800;
+  }
+  .btn-secondary {
+    @apply btn bg-white border border-surface-border text-slate-700
+           hover:bg-surface-tertiary active:bg-surface-border;
+  }
+  .btn-ghost {
+    @apply btn text-slate-600 hover:bg-surface-tertiary hover:text-slate-900;
+  }
+  .btn-danger {
+    @apply btn bg-risk-high text-white hover:bg-red-600 active:bg-red-700;
+  }
+  .btn-sm {
+    @apply h-8 px-3 text-xs;
+  }
+  .btn-lg {
+    @apply h-11 px-6 text-md;
+  }
+  .btn-icon {
+    @apply btn h-9 w-9 p-0;
+  }
+
+  /* ── Inputs ──────────────────────────────────────────────────── */
+  .input {
+    @apply w-full h-9 rounded-md border border-surface-border bg-white px-3 text-sm
+           text-slate-900 placeholder:text-slate-400
+           focus:outline-none focus:ring-2 focus:ring-brand-600 focus:border-transparent
+           transition-colors duration-150
+           disabled:bg-surface-tertiary disabled:cursor-not-allowed;
+  }
+  .dark .input {
+    @apply bg-slate-800 border-slate-700 text-slate-100 placeholder:text-slate-500;
+  }
+
+  /* ── Cards ───────────────────────────────────────────────────── */
+  .card {
+    @apply bg-white rounded-xl border border-surface-border shadow-card;
+  }
+  .dark .card {
+    @apply bg-slate-900 border-slate-800;
+  }
+  .card-hover {
+    @apply card transition-shadow duration-200 hover:shadow-card-hover;
+  }
+
+  /* ── Badges ──────────────────────────────────────────────────── */
+  .badge {
+    @apply inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium;
+  }
+  .badge-low    { @apply badge bg-risk-low-bg    text-risk-low; }
+  .badge-medium { @apply badge bg-risk-medium-bg text-risk-medium; }
+  .badge-high   { @apply badge bg-risk-high-bg   text-risk-high; }
+  .badge-neutral{ @apply badge bg-slate-100 text-slate-600; }
+  .badge-brand  { @apply badge bg-brand-50 text-brand-700; }
+
+  /* ── Table ───────────────────────────────────────────────────── */
+  .table-wrapper {
+    @apply w-full overflow-x-auto;
+  }
+  .data-table {
+    @apply w-full text-sm border-collapse;
+  }
+  .data-table thead tr {
+    @apply bg-surface-secondary;
+  }
+  .data-table th {
+    @apply px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wide
+           whitespace-nowrap border-b border-surface-border;
+  }
+  .data-table tbody tr {
+    @apply border-t border-surface-border transition-colors duration-100
+           hover:bg-surface-secondary cursor-pointer;
+  }
+  .data-table td {
+    @apply px-4 py-3 text-slate-700 whitespace-nowrap;
+  }
+  .dark .data-table thead tr { @apply bg-slate-800/50; }
+  .dark .data-table th { @apply text-slate-400 border-slate-800; }
+  .dark .data-table tbody tr { @apply border-slate-800 hover:bg-slate-800/50; }
+  .dark .data-table td { @apply text-slate-300; }
+
+  /* ── Section card ────────────────────────────────────────────── */
+  .section-card { @apply card overflow-hidden; }
+  .section-card-header {
+    @apply px-5 py-4 border-b border-surface-border flex items-center justify-between;
+  }
+  .section-card-body { @apply p-5; }
+  .dark .section-card-header { @apply border-slate-800; }
+
+  /* ── Sidebar nav link ────────────────────────────────────────── */
+  .nav-link {
+    @apply flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors duration-150
+           text-slate-600 hover:bg-surface-tertiary hover:text-slate-900;
+  }
+  .nav-link.active {
+    @apply bg-brand-50 text-brand-700 font-medium;
+  }
+  .dark .nav-link { @apply text-slate-400 hover:bg-slate-800 hover:text-slate-100; }
+  .dark .nav-link.active { @apply bg-brand-900/40 text-brand-400; }
+
+  /* ── Skeleton ────────────────────────────────────────────────── */
+  .skeleton {
+    @apply animate-pulse bg-slate-200 rounded;
+  }
+  .dark .skeleton { @apply bg-slate-700; }
+
+  /* ── Page header ─────────────────────────────────────────────── */
+  .page-header {
+    @apply flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6;
+  }
+  .page-title { @apply text-2xl font-semibold text-slate-900; }
+  .page-subtitle { @apply text-sm text-slate-500 mt-0.5; }
+  .dark .page-title { @apply text-slate-100; }
+  .dark .page-subtitle { @apply text-slate-400; }
 }
 
-@keyframes pulse-once {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
+/* ── Animations ──────────────────────────────────────────────────── */
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
-.animate-pulse-once {
-  animation: pulse-once 1s ease-in-out 2;
+.animate-fade-in { animation: fade-in 0.2s ease-out; }
+
+@keyframes slide-in-left {
+  from { transform: translateX(-100%); }
+  to   { transform: translateX(0); }
 }
+.animate-slide-in { animation: slide-in-left 0.25s ease-out; }

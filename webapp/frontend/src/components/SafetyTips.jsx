@@ -1,4 +1,5 @@
 import { ShieldCheck } from 'lucide-react'
+import SectionCard from './ui/SectionCard'
 
 const TIPS = [
   'Never share your OTP or card PIN with anyone — not even bank staff.',
@@ -10,17 +11,17 @@ const TIPS = [
 
 export default function SafetyTips() {
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-5">
-      <div className="flex items-center gap-2 mb-4 font-semibold text-gray-800 dark:text-white">
-        <ShieldCheck size={18} className="text-green-600" /> How to stay safe
-      </div>
-      <ul className="space-y-2">
+    <SectionCard
+      title="How to stay safe"
+      actions={<ShieldCheck size={16} className="text-risk-low" />}>
+      <ul className="space-y-2.5">
         {TIPS.map((tip, i) => (
-          <li key={i} className="flex gap-2 text-sm text-gray-600 dark:text-gray-300">
-            <span className="text-green-500 shrink-0">✓</span> {tip}
+          <li key={i} className="flex gap-2.5 text-sm text-slate-600 dark:text-slate-300">
+            <span className="text-risk-low flex-shrink-0 mt-0.5">✓</span>
+            {tip}
           </li>
         ))}
       </ul>
-    </div>
+    </SectionCard>
   )
 }

@@ -3,50 +3,39 @@ import { useAuth } from '../context/AuthContext'
 import { useAlerts } from '../context/AlertsContext'
 import { useLiveFeed } from '../context/LiveFeedContext'
 import api from '../api/client'
-import { Activity, CreditCard, AlertTriangle, CheckCircle, ShieldCheck, Lock, RefreshCw } from 'lucide-react'
-import { LineChart, Line, XAxis, YAxis, Tooltip as ReTooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
-import Tooltip from '../components/Tooltip'
+import { Activity, CreditCard, AlertTriangle, CheckCircle, ShieldCheck, TrendingUp, RefreshCw } from 'lucide-react'
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
+import PageHeader from '../components/ui/PageHeader'
+import SectionCard from '../components/ui/SectionCard'
+import KPICard from '../components/ui/KPICard'
+import RiskBadge from '../components/ui/RiskBadge'
+import EmptyState from '../components/ui/EmptyState'
+import { SkeletonCard } from '../components/ui/Skeletons'
 import SafetyTips from '../components/SafetyTips'
-import RiskBar from '../components/RiskBar'
-import CardFreezeToggle from '../components/CardFreezeToggle'
-import VelocityWidget from '../components/VelocityWidget'
-import SafeVsSuspicious from '../components/SafeVsSuspicious'
-import LocationTimeline from '../components/LocationTimeline'
-import LiveTransactionRow from '../components/LiveTransactionRow'
-import { useT } from '../i18n'
 
-function StatCard({ icon: Icon, label, value, color, tip }) {
-  return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-5 flex items-center gap-4">
-      <div className={`p-3 rounded-lg ${color}`}><Icon size={20} /></div>
-      <div>
-        <div className="flex items-center gap-1">
-          <p className="text-sm text-gray-500 dark:text-gray-400">{label}</p>
-          {tip && <Tooltip text={tip}><span className="text-gray-300 cursor-help text-xs">ⓘ</span></Tooltip>}
-        </div>
-        <p className="text-2xl font-bold dark:text-white">{value}</p>
-      </div>
-    </div>
-  )
+function fmtDate(ts) {
+  try { return ts ? new Date(ts).toLocaleString() : '—' } catch { return '—' }
+}
+
+function fmtTime(ts) {
+  try { return ts ? new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—' } catch { return '—' }
 }
 
 export default function DashboardPage() {
   const { user } = useAuth()
   const { liveAlerts } = useAlerts()
   const { liveTxns, velocity, cards, refreshCards } = useLiveFeed()
-  const tr = useT()
-
   const [alerts, setAlerts] = useState([])
   const [dailyStats, setDailyStats] = useState([])
+  const [loading, setLoading] = useState(true)
   const prevTxnIds = useRef(new Set())
   const [newIds, setNewIds] = useState(new Set())
 
-  // Load alerts once
   useEffect(() => {
     api.get('/alerts?limit=100').then(r => setAlerts(r.data)).catch(() => {})
+      .finally(() => setLoading(false))
   }, [])
 
-  // Highlight newly arrived transactions
   useEffect(() => {
     const fresh = liveTxns.filter(t => !prevTxnIds.current.has(t.id)).map(t => t.id)
     if (fresh.length) {
@@ -56,7 +45,6 @@ export default function DashboardPage() {
     }
   }, [liveTxns])
 
-  // Build daily chart from live transactions
   useEffect(() => {
     if (!liveTxns.length) return
     const map = {}
@@ -66,138 +54,123 @@ export default function DashboardPage() {
       map[d].total++
       if (t.risk_level === 'HIGH' || t.risk_level === 'MEDIUM') map[d].flagged++
     })
-    setDailyStats(Object.values(map).slice(-7))
+    setDailyStats(Object.values(map).slice(-14))
   }, [liveTxns])
 
   const pendingAlerts = alerts.filter(a => a.status === 'PENDING').length
   const blockedCount = alerts.filter(a => a.status === 'BLOCKED').length
   const safeCount = alerts.filter(a => a.status === 'APPROVED' || a.status === 'FALSE_POSITIVE').length
   const thisMonth = alerts.filter(a => new Date(a.created_at) > new Date(Date.now() - 30 * 86400000)).length
-  const totalSpend = liveTxns.reduce((s, t) => s + (t.amount || 0), 0)
-  const primaryCard = cards[0]
+  const totalSpend = (liveTxns || []).reduce((s, t) => s + (t.amount || 0), 0)
+  const highRiskCount = (liveTxns || []).filter(t => t.risk_level === 'HIGH').length
 
-  // Build alert lookup by transaction_id for inline actions
-  const alertByTxn = {}
-  alerts.forEach(a => { if (a.transaction_id) alertByTxn[a.transaction_id] = a.id })
-
-  const reloadAlerts = () => api.get('/alerts?limit=100').then(r => setAlerts(r.data)).catch(() => {})
+  const kpis = [
+    { label: 'Active Cards', value: (cards || []).filter(c => c.status === 'ACTIVE').length, icon: CreditCard, color: 'bg-brand-50 text-brand-600' },
+    { label: 'Transactions', value: (liveTxns || []).length, icon: Activity, color: 'bg-purple-50 text-purple-600' },
+    { label: 'Pending Alerts', value: pendingAlerts + liveAlerts.filter(a => !a.archived).length, icon: AlertTriangle, color: 'bg-amber-50 text-amber-600' },
+    { label: 'High Risk Flagged', value: highRiskCount, icon: ShieldCheck, color: 'bg-red-50 text-red-600' },
+  ]
 
   return (
-    <div className="space-y-5">
-      {/* Header + card freeze toggle */}
-      <div className="flex items-start justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-            Welcome back, {user?.full_name?.split(' ')[0]} 👋
-          </h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">Live fraud monitoring dashboard</p>
-        </div>
-        <CardFreezeToggle card={primaryCard} onToggled={refreshCards} />
-      </div>
+    <div className="space-y-6">
+      <PageHeader
+        title={`Welcome back, ${user?.full_name?.split(' ')[0] || 'User'} 👋`}
+        subtitle="Here's your fraud monitoring overview"
+        actions={
+          <button onClick={refreshCards} className="btn-secondary btn-sm">
+            <RefreshCw size={13} /> Refresh
+          </button>
+        }
+      />
 
-      {/* Stat cards */}
+      {/* KPI row */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard icon={CreditCard} label={tr('activeCards')} value={cards.filter(c => c.status === 'ACTIVE').length}
-          color="bg-blue-100 text-blue-600" tip="Cards currently active" />
-        <StatCard icon={Activity} label="Live transactions" value={liveTxns.length}
-          color="bg-purple-100 text-purple-600" tip="Transactions tracked in this session" />
-        <StatCard icon={AlertTriangle} label={tr('pendingAlerts')} value={pendingAlerts + liveAlerts.filter(a => !a.archived).length}
-          color="bg-orange-100 text-orange-600" tip="Alerts waiting for your review" />
-        <StatCard icon={CheckCircle} label={tr('highRisk')} value={liveTxns.filter(t => t.risk_level === 'HIGH').length}
-          color="bg-red-100 text-red-600" tip="High-risk transactions detected" />
+        {loading
+          ? Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} />)
+          : kpis.map(k => <KPICard key={k.label} {...k} />)
+        }
       </div>
 
-      {/* Row 2: Security summary + chart */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-5 space-y-3">
-          <div className="flex items-center gap-2 font-semibold text-gray-800 dark:text-white text-sm">
-            <ShieldCheck size={16} className="text-green-600" /> {tr('securitySummary')}
-          </div>
-          <div className="space-y-2 text-sm">
-            {[
-              { label: tr('alertsThisMonth'), val: thisMonth, cls: 'dark:text-white' },
-              { label: tr('blocked'), val: blockedCount, cls: 'text-red-600' },
-              { label: tr('confirmedSafe'), val: safeCount, cls: 'text-green-600' },
-            ].map(r => (
-              <div key={r.label} className="flex justify-between">
-                <span className="text-gray-500 dark:text-gray-400">{r.label}</span>
-                <span className={`font-semibold ${r.cls}`}>{r.val}</span>
-              </div>
-            ))}
-          </div>
-          <div className="pt-2 border-t dark:border-gray-700">
-            <p className="text-xs text-gray-400">Total spend tracked</p>
-            <p className="text-xl font-bold dark:text-white">${totalSpend.toFixed(2)}</p>
-          </div>
-          {/* Card risk meter */}
-          {primaryCard && (
-            <div className="pt-2 border-t dark:border-gray-700">
-              <p className="text-xs text-gray-400 mb-1.5">Card risk level</p>
-              <RiskBar
-                score={liveTxns.filter(t => t.risk_level === 'HIGH').length > 2 ? 75 : liveTxns.filter(t => t.risk_level === 'MEDIUM').length > 3 ? 45 : 15}
-                riskLevel={liveTxns.filter(t => t.risk_level === 'HIGH').length > 2 ? 'HIGH' : liveTxns.filter(t => t.risk_level === 'MEDIUM').length > 3 ? 'MEDIUM' : 'LOW'}
-              />
-            </div>
-          )}
-        </div>
-
-        <div className="md:col-span-2 bg-white dark:bg-gray-800 rounded-xl shadow-sm p-5">
-          <p className="font-semibold text-gray-800 dark:text-white mb-3 text-sm">Daily activity</p>
+      {/* Chart + Security summary */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <SectionCard
+          title="Transaction Activity"
+          subtitle="Last 14 days — total vs flagged"
+          className="lg:col-span-2">
           {dailyStats.length > 0 ? (
-            <ResponsiveContainer width="100%" height={150}>
+            <ResponsiveContainer width="100%" height={200}>
               <LineChart data={dailyStats}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                <XAxis dataKey="date" tick={{ fontSize: 10 }} />
-                <YAxis tick={{ fontSize: 10 }} />
-                <ReTooltip />
-                <Line type="monotone" dataKey="total" stroke="#3b82f6" name="Total" dot={false} strokeWidth={2} />
-                <Line type="monotone" dataKey="flagged" stroke="#ef4444" name="Flagged" dot={false} strokeWidth={2} />
+                <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" />
+                <XAxis dataKey="date" tick={{ fontSize: 11, fill: '#94A3B8' }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 11, fill: '#94A3B8' }} axisLine={false} tickLine={false} />
+                <Tooltip
+                  contentStyle={{ background: '#fff', border: '1px solid #E2E8F0', borderRadius: 8, fontSize: 12 }}
+                />
+                <Line type="monotone" dataKey="total" stroke="#4F46E5" name="Total" dot={false} strokeWidth={2} />
+                <Line type="monotone" dataKey="flagged" stroke="#EF4444" name="Flagged" dot={false} strokeWidth={2} />
               </LineChart>
             </ResponsiveContainer>
           ) : (
-            <p className="text-sm text-gray-400 text-center py-12">No data yet — click "Simulate Stream" on the Transactions page</p>
+            <EmptyState icon={Activity} title="No data yet" subtitle="Simulate transactions to see activity" />
           )}
-        </div>
-      </div>
+        </SectionCard>
 
-      {/* Row 3: Velocity + Safe vs Suspicious */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <VelocityWidget velocity={velocity} />
-        <SafeVsSuspicious txns={liveTxns} />
-      </div>
-
-      {/* Row 4: Live feed + Location timeline */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* Live transaction feed */}
-        <div className="lg:col-span-2 bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden">
-          <div className="px-4 py-3 border-b dark:border-gray-700 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-              <span className="font-semibold text-sm dark:text-white">Live Transaction Feed</span>
-            </div>
-            <span className="text-xs text-gray-400">Auto-updates every 5s</span>
-          </div>
-          <div className="divide-y dark:divide-gray-700 max-h-96 overflow-y-auto">
-            {liveTxns.slice(0, 20).map(t => (
-              <LiveTransactionRow
-                key={t.id}
-                txn={t}
-                alertId={alertByTxn[t.id]}
-                isNew={newIds.has(t.id)}
-                onResolved={reloadAlerts}
-              />
+        {/* Security summary */}
+        <SectionCard title="Security Summary">
+          <div className="space-y-3">
+            {[
+              { label: 'Alerts this month', value: thisMonth, color: 'text-slate-900 dark:text-slate-100' },
+              { label: 'Blocked', value: blockedCount, color: 'text-risk-high font-semibold' },
+              { label: 'Confirmed safe', value: safeCount, color: 'text-risk-low font-semibold' },
+            ].map(r => (
+              <div key={r.label} className="flex items-center justify-between py-2 border-b border-surface-border dark:border-slate-800 last:border-0">
+                <span className="text-sm text-slate-500 dark:text-slate-400">{r.label}</span>
+                <span className={`text-sm font-mono ${r.color}`}>{r.value}</span>
+              </div>
             ))}
-            {liveTxns.length === 0 && (
-              <p className="text-center text-gray-400 py-10 text-sm">
-                No transactions yet — go to Transactions and click "Simulate Stream"
+            <div className="pt-2">
+              <p className="text-xs text-slate-400 mb-1">Total spend tracked</p>
+              <p className="text-2xl font-semibold font-mono text-slate-900 dark:text-slate-100">
+                ${totalSpend.toFixed(2)}
               </p>
-            )}
+            </div>
           </div>
-        </div>
-
-        {/* Location timeline */}
-        <LocationTimeline txns={liveTxns} />
+        </SectionCard>
       </div>
+
+      {/* Live feed */}
+      <SectionCard
+        title="Live Transaction Feed"
+        subtitle="Auto-updates every 5s"
+        actions={
+          <span className="flex items-center gap-1.5 text-xs text-risk-low">
+            <span className="w-1.5 h-1.5 rounded-full bg-risk-low animate-pulse" />
+            Live
+          </span>
+        }
+        noPadding>
+        {(liveTxns || []).length === 0 ? (
+          <EmptyState icon={Activity} title="No transactions yet" subtitle="Go to Transactions and click Simulate Stream" />
+        ) : (
+          <div className="divide-y divide-surface-border dark:divide-slate-800 max-h-80 overflow-y-auto">
+            {(liveTxns || []).slice(0, 20).map(t => (
+              <div key={t.id}
+                className={`flex items-center gap-4 px-5 py-3 transition-colors duration-300 ${newIds.has(t.id) ? 'bg-brand-50 dark:bg-brand-900/20' : 'hover:bg-surface-secondary dark:hover:bg-slate-800/50'}`}>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-slate-900 dark:text-slate-100 truncate">
+                    {t.merchant_name || 'Unknown Merchant'}
+                  </p>
+                  <p className="text-xs text-slate-400 mt-0.5">{t.country || '—'} · {fmtTime(t.timestamp)}</p>
+                </div>
+                <RiskBadge level={t.risk_level} score={t.fraud_score} />
+                <span className="text-sm font-semibold font-mono text-slate-900 dark:text-slate-100 flex-shrink-0">
+                  ${Number(t.amount).toFixed(2)}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </SectionCard>
 
       <SafetyTips />
     </div>
