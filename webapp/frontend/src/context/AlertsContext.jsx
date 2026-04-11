@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useRef, useState } from 'react'
 import toast from 'react-hot-toast'
 import { useAuth } from './AuthContext'
 import { usePrefs } from './PrefsContext'
+import { wsUrl } from '../lib/wsUrl'
 
 const AlertsContext = createContext({ liveAlerts: [], archiveAlert: () => {} })
 
@@ -29,7 +30,7 @@ export function AlertsProvider({ children }) {
   useEffect(() => {
     if (!user) return
     const token = localStorage.getItem('access_token')
-    const ws = new WebSocket(`ws://${window.location.host}/ws/alerts?token=${token}`)
+    const ws = new WebSocket(wsUrl(`/ws/alerts?token=${token}`))
     wsRef.current = ws
 
     ws.onmessage = (e) => {

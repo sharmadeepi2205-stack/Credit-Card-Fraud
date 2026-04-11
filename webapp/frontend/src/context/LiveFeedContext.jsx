@@ -9,6 +9,7 @@
 import { createContext, useContext, useEffect, useRef, useState, useCallback } from 'react'
 import api from '../api/client'
 import { useAuth } from './AuthContext'
+import { wsUrl } from '../lib/wsUrl'
 
 const LiveFeedContext = createContext({})
 
@@ -60,7 +61,7 @@ export function LiveFeedProvider({ children }) {
     if (!user) return
     const token = localStorage.getItem('access_token')
     if (!token) return
-    const ws = new WebSocket(`ws://${window.location.host}/ws/alerts?token=${token}`)
+    const ws = new WebSocket(wsUrl(`/ws/alerts?token=${token}`))
     wsRef.current = ws
 
     ws.onmessage = (e) => {
