@@ -10,8 +10,17 @@ from app.auth import hash_password
 
 
 async def seed():
+    from sqlalchemy import select
     await init_db()
     async with AsyncSessionLocal() as db:
+        # Skip if already seeded
+        existing = await db.execute(select(User).where(User.email == "admin@fraudguard.dev"))
+        if existing.scalar_one_or_none():
+            print("Database already seeded — skipping.")
+            print("  Admin: admin@fraudguard.dev / Admin1234!")
+            print("  Demo:  demo@fraudguard.dev  / Demo1234!")
+            return
+
         admin = User(
             id=str(uuid.uuid4()), email="admin@fraudguard.dev",
             hashed_password=hash_password("Admin1234!"),

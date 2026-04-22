@@ -24,6 +24,7 @@ import SpendingPage from './pages/SpendingPage'
 import MerchantsPage from './pages/MerchantsPage'
 import DarkWebPage from './pages/DarkWebPage'
 import Layout from './components/Layout'
+import FreezeAlertModal from './components/FreezeAlertModal'
 
 function PrivateRoute({ children, adminOnly = false }) {
   const { user, loading } = useAuth()
@@ -40,6 +41,7 @@ export default function App() {
         <AuthProvider>
           <AlertsProvider>
             <LiveFeedProvider>
+            <FreezeAlertModal />
             <Routes>
               <Route path="/login" element={<LoginPage />} />
               <Route path="/register" element={<RegisterPage />} />

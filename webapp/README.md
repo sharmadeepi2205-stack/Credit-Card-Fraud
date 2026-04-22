@@ -3,69 +3,94 @@
 Built on top of the existing `fraud_detection_app` ML engine.
 
 ## Stack
-- **Backend**: FastAPI + SQLAlchemy (async) + PostgreSQL
+- **Backend**: FastAPI + SQLAlchemy (async) + SQLite
 - **Frontend**: React 18 + Vite + Tailwind CSS + Recharts
 - **Real-time**: WebSocket (FastAPI native)
 - **Auth**: JWT + email OTP (MFA)
 - **ML**: Wraps existing `fraud_detection_app` engine (Random Forest / XGBoost)
-- **Infra**: Docker Compose
 
 ---
 
-## Quick Start (Docker)
+## Quick Start
 
-```bash
-# From repo root
-cd webapp
-docker compose up --build
+### Option A — One-click (Windows)
+
+From the repo root:
+
+```bat
+start.bat
 ```
 
-- Frontend: http://localhost:5173
-- Backend API docs: http://localhost:8000/docs
-- Admin: admin@fraudguard.dev / Admin1234!
-- Demo user: demo@fraudguard.dev / Demo1234!
+This installs dependencies, seeds the database, and opens both servers in separate terminal windows.
 
 ---
 
-## Local Dev (no Docker)
+### Option B — Manual
 
-### Backend
+#### Backend
 
 ```bash
-# 1. Start Postgres + Redis (or use Docker for just those)
-docker compose up db redis -d
-
-# 2. Install deps
 cd webapp/backend
+
+# Install dependencies
 pip install -r requirements.txt
 
-# 3. Copy and edit env
-cp .env.example .env
-
-# 4. Seed DB
+# Seed the database (creates SQLite DB + demo users)
 python seed.py
 
-# 5. Run API
+# Start the API server
 uvicorn app.main:app --reload --port 8000
 ```
 
-### Frontend
+#### Frontend
 
 ```bash
 cd webapp/frontend
+
 npm install
 npm run dev   # http://localhost:5173
 ```
 
 ---
 
-## Seeding Kaggle Data
+## URLs
+
+| Service  | URL |
+|----------|-----|
+| Frontend | http://localhost:5173 |
+| Backend  | http://localhost:8000 |
+| API Docs | http://localhost:8000/docs |
+
+## Demo Accounts
+
+| Role  | Email | Password |
+|-------|-------|----------|
+| Admin | admin@fraudguard.dev | Admin1234! |
+| Demo  | demo@fraudguard.dev  | Demo1234!  |
+
+---
+
+## Environment Configuration
+
+The backend reads from `webapp/backend/.env`. Defaults work out of the box with SQLite.
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `DATABASE_URL` | `sqlite+aiosqlite:///./fraudguard.db` | Database connection string |
+| `SECRET_KEY` | (set in .env) | JWT signing key — change in production |
+| `MODEL_PATH` | `../../models/model.pkl` | Path to ML model |
+| `CSV_PATH` | `../../data/creditcard.csv` | Path to transaction CSV |
+| `SMTP_USER` / `SMTP_PASS` | (empty) | Email — leave blank to use console mock |
+| `ENVIRONMENT` | `development` | Set to `production` to enable real email |
+
+---
+
+## Seeding Transaction Data
 
 After logging in as the demo user:
 
-1. Add a card on the Cards page (or it's pre-seeded).
-2. Go to Transactions → click **Simulate Stream** to stream 20 transactions from `creditcard.csv` in real-time.
-3. Or call the API directly:
+1. Go to **Transactions → Simulate Stream** to stream 20 transactions from `creditcard.csv` in real-time.
+2. Or call the API directly:
 
 ```bash
 # Seed 500 rows from CSV
@@ -130,15 +155,16 @@ webapp/
 │   │       ├── admin.py
 │   │       ├── travel.py
 │   │       └── simulation.py
+│   ├── .env                 # Local environment config
 │   ├── seed.py
-│   └── Dockerfile
+│   └── requirements.txt
 ├── frontend/
 │   └── src/
 │       ├── pages/           # Login, Dashboard, Transactions, Alerts, Cards, Admin
 │       ├── context/         # AuthContext, AlertsContext (WebSocket)
 │       ├── components/      # Layout, sidebar
 │       └── api/client.js    # Axios + auto-refresh
-└── docker-compose.yml
+└── README.md
 ```
 
 ---

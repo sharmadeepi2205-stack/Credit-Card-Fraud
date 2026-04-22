@@ -1,24 +1,31 @@
-import { createContext, useContext, useEffect, useRef, useState } from 'react'
+import { createContext, useContext, useEffect, useRef, useState, useCallback } from 'react'
 import toast from 'react-hot-toast'
 import { useAuth } from './AuthContext'
 import { usePrefs } from './PrefsContext'
 import { wsUrl } from '../lib/wsUrl'
 
-const AlertsContext = createContext({ liveAlerts: [], archiveAlert: () => {} })
+const AlertsContext = createContext({
+  liveAlerts: [],
+  freezeAlert: null,
+  archiveAlert: () => {},
+  archiveAll: () => {},
+  dismissFreezeAlert: () => {},
+})
 
 const RISK_COLORS = { HIGH: '#ef4444', MEDIUM: '#f97316', LOW: '#22c55e' }
 
 function friendlyMsg(msg) {
-  const amt = `$${Number(msg.amount || 0).toFixed(2)}`
-  if (msg?.risk_level === 'HIGH') return `Unusual activity on your card — ${amt}`
-  if (msg?.risk_level === 'MEDIUM') return `Something looks slightly off — ${amt}`
-  return `Transaction reviewed — ${amt}`
+  const amt = `${Number(msg.amount || 0).toFixed(2)}`
+  if (msg?.risk_level === 'HIGH') return `Unusual activity on your card — $${amt}`
+  if (msg?.risk_level === 'MEDIUM') return `Something looks slightly off — $${amt}`
+  return `Transaction reviewed — $${amt}`
 }
 
 export function AlertsProvider({ children }) {
   const { user } = useAuth()
   const { isDND } = usePrefs()
   const [liveAlerts, setLiveAlerts] = useState([])
+  const [freezeAlert, setFreezeAlert] = useState(null)
   const wsRef = useRef(null)
 
   const archiveAlert = (id) =>
@@ -26,6 +33,8 @@ export function AlertsProvider({ children }) {
 
   const archiveAll = () =>
     setLiveAlerts(prev => prev.map(a => ({ ...a, archived: true })))
+
+  const dismissFreezeAlert = useCallback(() => setFreezeAlert(null), [])
 
   useEffect(() => {
     if (!user) return
@@ -36,6 +45,7 @@ export function AlertsProvider({ children }) {
     ws.onmessage = (e) => {
       try {
         const msg = JSON.parse(e.data)
+
         if (msg.type === 'FRAUD_ALERT') {
           setLiveAlerts(prev => [{ ...msg, archived: false }, ...prev].slice(0, 50))
           if (!isDND()) {
@@ -48,6 +58,17 @@ export function AlertsProvider({ children }) {
             ), { duration: 6000 })
           }
         }
+
+        if (msg.type === 'FREEZE_RECOMMENDATION') {
+          // Show the freeze modal — replaces any previous one
+          setFreezeAlert(msg)
+          setLiveAlerts(prev => [{
+            ...msg,
+            risk_level: 'HIGH',
+            alert_id: msg.alert_id,
+            archived: false,
+          }, ...prev].slice(0, 50))
+        }
       } catch { /* ignore malformed messages */ }
     }
 
@@ -56,7 +77,7 @@ export function AlertsProvider({ children }) {
   }, [user])
 
   return (
-    <AlertsContext.Provider value={{ liveAlerts, archiveAlert, archiveAll }}>
+    <AlertsContext.Provider value={{ liveAlerts, freezeAlert, archiveAlert, archiveAll, dismissFreezeAlert }}>
       {children}
     </AlertsContext.Provider>
   )

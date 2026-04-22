@@ -1,12 +1,35 @@
 import { useState } from 'react'
 import api from '../api/client'
 import toast from 'react-hot-toast'
-import { Play, Zap, CreditCard, User, Globe, Smartphone } from 'lucide-react'
+import { Play, Zap, CreditCard, User, Globe, Smartphone, ShieldAlert, AlertTriangle, Loader } from 'lucide-react'
 import RiskBar from '../components/RiskBar'
+
+const HIGH_RISK_SCENARIOS = [
+  {
+    index: 0,
+    name: 'Stolen Card — ATM Spree',
+    icon: '🏧',
+    description: 'Card skimmed and used at ATMs in Russia then Nigeria within minutes. Triggers impossible travel + country mismatch alerts.',
+    tags: ['Impossible Travel', 'Country Mismatch', 'Cash Withdrawal'],
+  },
+  {
+    index: 1,
+    name: 'Account Takeover',
+    icon: '🔓',
+    description: 'Attacker gains access and immediately makes large luxury purchases from new devices in UAE and China.',
+    tags: ['New Device', 'High Amount', 'Velocity Burst'],
+  },
+  {
+    index: 2,
+    name: 'Card Testing + Large Fraud',
+    icon: '🤖',
+    description: 'Bot tests card with $1 micro-transaction, then immediately charges $3,499 at an electronics store.',
+    tags: ['Card Testing', 'Bot Pattern', 'Velocity'],
+  },
+]
 
 const SCENARIOS = [
   {
-    id: 'card_skimming',
     name: 'Card Skimming Attack',
     icon: CreditCard,
     color: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300',
@@ -108,6 +131,7 @@ export default function SimulationPage() {
   const [results, setResults] = useState([])
   const [running, setRunning] = useState(false)
   const [step, setStep] = useState(-1)
+  const [hrRunning, setHrRunning] = useState(null) // index of running high-risk scenario
 
   const runScenario = async (scenario) => {
     setSelected(scenario)
@@ -143,6 +167,27 @@ export default function SimulationPage() {
     }
   }
 
+  const runHighRiskScenario = async (scenario) => {
+    setHrRunning(scenario.index)
+    try {
+      await api.post(`/simulate/high-risk?scenario=${scenario.index}`)
+      toast.custom(() => (
+        <div className="bg-red-700 text-white px-4 py-3 rounded-xl shadow-lg flex items-center gap-2 max-w-sm">
+          <ShieldAlert size={16} className="flex-shrink-0" />
+          <div>
+            <p className="font-semibold text-sm">High-risk transactions injected!</p>
+            <p className="text-xs text-red-200 mt-0.5">Watch for the freeze alert popup…</p>
+          </div>
+        </div>
+      ), { duration: 5000 })
+    } catch {
+      toast.error('Failed to run scenario — make sure you have a card added')
+    } finally {
+      // Keep spinner briefly so user sees it fired
+      setTimeout(() => setHrRunning(null), 3000)
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -154,35 +199,93 @@ export default function SimulationPage() {
         </p>
       </div>
 
-      {/* Scenario cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {SCENARIOS.map(s => {
-          const Icon = s.icon
-          const isActive = selected?.id === s.id
-          return (
-            <button key={s.id} onClick={() => !running && runScenario(s)}
-              disabled={running}
-              className={`text-left p-5 rounded-2xl border-2 transition-all hover:shadow-md disabled:cursor-not-allowed ${
-                isActive
-                  ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
-                  : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-gray-800 hover:border-blue-300'
-              }`}>
-              <div className={`inline-flex p-2 rounded-lg mb-3 ${s.color}`}>
-                <Icon size={18} />
-              </div>
-              <h3 className="font-semibold text-sm dark:text-white mb-1">{s.name}</h3>
-              <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">{s.description}</p>
-              <div className="flex items-center gap-2 mt-3">
-                <span className="text-xs text-gray-400">{s.transactions.length} transactions</span>
-                {isActive && running && (
-                  <span className="flex items-center gap-1 text-xs text-blue-600">
-                    <span className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse" /> Running…
-                  </span>
+      {/* ── HIGH RISK section ─────────────────────────────────────────── */}
+      <div className="bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-800 rounded-2xl p-5">
+        <div className="flex items-center gap-2 mb-1">
+          <ShieldAlert size={18} className="text-red-600" />
+          <h2 className="font-bold text-red-700 dark:text-red-400">High-Risk Attack Simulations</h2>
+          <span className="ml-2 text-xs bg-red-600 text-white px-2 py-0.5 rounded-full font-semibold">LIVE ALERTS</span>
+        </div>
+        <p className="text-xs text-red-600 dark:text-red-400 mb-4">
+          These inject pre-crafted HIGH-risk transactions directly into your account.
+          A <strong>freeze-account alert popup</strong> will appear in real time via WebSocket.
+        </p>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          {HIGH_RISK_SCENARIOS.map(s => {
+            const isRunning = hrRunning === s.index
+            return (
+              <button key={s.index}
+                onClick={() => !hrRunning && runHighRiskScenario(s)}
+                disabled={!!hrRunning}
+                className={`text-left p-4 rounded-xl border-2 transition-all hover:shadow-md disabled:cursor-not-allowed ${
+                  isRunning
+                    ? 'border-red-500 bg-red-100 dark:bg-red-900/30'
+                    : 'border-red-200 dark:border-red-800 bg-white dark:bg-gray-800 hover:border-red-400'
+                }`}>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-2xl">{s.icon}</span>
+                  {isRunning && <Loader size={14} className="text-red-500 animate-spin" />}
+                </div>
+                <h3 className="font-semibold text-sm text-gray-900 dark:text-white mb-1">{s.name}</h3>
+                <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed mb-3">{s.description}</p>
+                <div className="flex flex-wrap gap-1">
+                  {s.tags.map(tag => (
+                    <span key={tag} className="text-2xs bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300 px-1.5 py-0.5 rounded text-xs">
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+                {isRunning && (
+                  <p className="text-xs text-red-600 font-medium mt-2 flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse inline-block" />
+                    Injecting… watch for popup
+                  </p>
                 )}
-              </div>
-            </button>
-          )
-        })}
+              </button>
+            )
+          })}
+        </div>
+        <p className="text-xs text-red-400 dark:text-red-500 mt-3 flex items-center gap-1">
+          <AlertTriangle size={11} />
+          Transactions are saved to your account and visible in the Alerts &amp; Transactions pages.
+        </p>
+      </div>
+
+      {/* ── ML Scenario cards ─────────────────────────────────────────── */}
+      <div>
+        <h2 className="font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
+          <Zap size={16} className="text-amber-500" /> ML Scoring Scenarios
+          <span className="text-xs text-gray-400 font-normal">(predict only — no DB save)</span>
+        </h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {SCENARIOS.map(s => {
+            const Icon = s.icon
+            const isActive = selected?.id === s.id
+            return (
+              <button key={s.id} onClick={() => !running && runScenario(s)}
+                disabled={running}
+                className={`text-left p-5 rounded-2xl border-2 transition-all hover:shadow-md disabled:cursor-not-allowed ${
+                  isActive
+                    ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                    : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-gray-800 hover:border-blue-300'
+                }`}>
+                <div className={`inline-flex p-2 rounded-lg mb-3 ${s.color}`}>
+                  <Icon size={18} />
+                </div>
+                <h3 className="font-semibold text-sm dark:text-white mb-1">{s.name}</h3>
+                <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">{s.description}</p>
+                <div className="flex items-center gap-2 mt-3">
+                  <span className="text-xs text-gray-400">{s.transactions.length} transactions</span>
+                  {isActive && running && (
+                    <span className="flex items-center gap-1 text-xs text-blue-600">
+                      <span className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse" /> Running…
+                    </span>
+                  )}
+                </div>
+              </button>
+            )
+          })}
+        </div>
       </div>
 
       {/* Results */}
